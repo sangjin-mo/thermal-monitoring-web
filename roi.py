@@ -31,6 +31,7 @@ class RoiResult:
     roi_bounds: tuple  # (x1, y1, x2, y2) - thermal image 기준
     over_temp_pixels: int = 0       # 기준 온도 초과 픽셀 수
     max_hotspot_size: int = 0       # 가장 큰 초과 클러스터 크기 (connected component)
+    hotspot_centroids: list = field(default_factory=list)  # [(x, y, temp), ...] in 640x480 좌표계
 
 
 @dataclass
@@ -134,13 +135,37 @@ def extract_roi_from_npy(npy_path: str, config: Optional[RoiConfig] = None) -> R
     hotspot_mask = roi > over_threshold
     over_pixels = int(np.sum(hotspot_mask))
 
+    MIN_HOTSPOT = 3  # 노이즈 필터링: 3픽셀 이상만 실제 발열로 인정
     max_cluster = 0
+    centroids = []
+
     if over_pixels > 0:
         hotspot_uint8 = hotspot_mask.astype(np.uint8)
-        _, labels, stats, _ = cv2.connectedComponentsWithStats(hotspot_uint8, connectivity=8)
+        _, labels, stats, centroids_raw = cv2.connectedComponentsWithStats(
+            hotspot_uint8, connectivity=8
+        )
         # stats[0]은 배경(label 0) 전체 영역이므로 제외
         if len(stats) > 1:
             max_cluster = int(stats[1:, cv2.CC_STAT_AREA].max())
+
+        # ROI 내부 좌표 -> thermal 이미지(640x480) 좌표로 변환
+        scale_back_x = DISPLAY_W / thermal.shape[1]
+        scale_back_y = DISPLAY_H / thermal.shape[0]
+
+        for label_id in range(1, len(stats)):
+            area = int(stats[label_id, cv2.CC_STAT_AREA])
+            if area < MIN_HOTSPOT:
+                continue
+            cx, cy = centroids_raw[label_id]
+            # ROI 오프셋 적용 후 thermal 이미지 좌표계로 변환
+            if roi is not thermal:
+                cx += x1
+                cy += y1
+            tx = round(cx * scale_back_x)
+            ty = round(cy * scale_back_y)
+            cluster_mask = (labels == label_id) & hotspot_mask
+            cluster_max = float(np.nanmax(roi[hotspot_mask & (labels == label_id)]))
+            centroids.append((tx, ty, cluster_max))
 
     return RoiResult(
         roi_thermal=roi,
@@ -150,6 +175,7 @@ def extract_roi_from_npy(npy_path: str, config: Optional[RoiConfig] = None) -> R
         roi_bounds=(config.x1, config.y1, config.x2, config.y2),
         over_temp_pixels=over_pixels,
         max_hotspot_size=max_cluster,
+        hotspot_centroids=centroids,
     )
 
 

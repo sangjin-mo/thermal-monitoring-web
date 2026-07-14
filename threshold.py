@@ -4,17 +4,18 @@ threshold.py - Threshold 판단 및 상태 머신
 ROI 온도 통계값을 받아 Normal / Warning / Critical 상태를 판정하고
 상태 변화 시 알림 여부를 결정합니다.
 
-판정 기준:
-  1. 95th percentile 온도가 baseline + delta 초과
-  2. 동시에 국소 과열 영역이 3픽셀 이상의 클러스터로 존재해야 함
-     (1~2픽셀 크기는 센서 노이즈로 간주)
+이중 판정 경로:
+  1. 95th percentile 기준: 95th >= baseline + delta AND cluster >= 3px
+  2. max 온도 기준:    max >= baseline + critical_delta AND cluster >= 10px
+     (ROI 대비 소수 픽셀만 과열되어 95th가 낮게 나오는 경우를 보완)
 """
 
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-MIN_HOTSPOT_SIZE = 3  # 국소 과열로 인정하는 최소 픽셀 클러스터 크기
+MIN_HOTSPOT_SIZE = 3       # 95th percentile 경로 최소 클러스터 크기
+MIN_HOTSPOT_SIZE_MAX = 10  # max 온도 경로 최소 클러스터 크기 (노이즈 방지용 상향)
 
 
 class Status(Enum):
@@ -32,41 +33,45 @@ class MonitorState:
 
 def evaluate_threshold(
     hot_temp: float,
+    max_temp: float,
     baseline: float = 35.0,
     warning_delta: float = 15.0,
     critical_delta: float = 25.0,
-    over_temp_pixels: int = 0,
     max_hotspot_size: int = 0,
 ) -> Status:
     """
-    온도 통계 + 클러스터 크기 기반 상태 판정.
+    이중 경로 온도 상태 판정.
 
-    1~2픽셀 크기의 과열은 노이즈로 간주하고,
-    3픽셀 이상의 연결된 과열 클러스터가 있을 때만 실제 발열로 판단합니다.
+    경로 1 (95th percentile): 넓은 영역이 서서히 과열될 때 감지.
+        cluster >= 3px 필수 (1~2px 노이즈 제거).
+
+    경로 2 (max 온도): ROI 대비 소수 픽셀만 국소 과열되어
+        95th가 묻히는 경우를 보완. cluster >= 10px로 노이즈 방지.
     """
-    hotspot_real = max_hotspot_size >= MIN_HOTSPOT_SIZE
+    cluster_95 = max_hotspot_size >= MIN_HOTSPOT_SIZE
+    cluster_max = max_hotspot_size >= MIN_HOTSPOT_SIZE_MAX
 
-    if hot_temp >= baseline + critical_delta and hotspot_real:
+    # 경로 1: 95th percentile 기반
+    critical_95 = hot_temp >= baseline + critical_delta and cluster_95
+    warning_95 = hot_temp >= baseline + warning_delta and cluster_95
+
+    # 경로 2: max 온도 기반 (국소 고온 보완)
+    hot_max = max_temp >= baseline + critical_delta and cluster_max
+
+    if critical_95 or (hot_max and warning_95):
         return Status.CRITICAL
-    elif hot_temp >= baseline + warning_delta and hotspot_real:
+    elif warning_95 or hot_max:
         return Status.WARNING
     else:
         return Status.NORMAL
 
 
 def should_alarm(new_status: Status, state: MonitorState) -> bool:
-    """
-    알림 전송 여부 판단:
-    1. 상태가 변경되었을 때만 전송
-    2. 이전 알림 후 alarm_cooldown 이내면 전송하지 않음
-    """
     if new_status == state.status:
         return False
-
     now = time.time()
     if state.last_alarm_time > 0 and (now - state.last_alarm_time) < state.alarm_cooldown:
         return False
-
     return True
 
 
@@ -81,16 +86,9 @@ def evaluate_with_state(
     over_temp_pixels: int = 0,
     max_hotspot_size: int = 0,
 ) -> tuple[Status, bool]:
-    """
-    ROI 결과를 받아 상태 판정 + 알림 여부를 한 번에 반환.
-    (pipeline에서 호출할 편의 함수)
-
-    Returns:
-        (new_status, do_alarm)
-    """
     new_status = evaluate_threshold(
-        hot_temp, baseline, warning_delta, critical_delta,
-        over_temp_pixels, max_hotspot_size,
+        hot_temp, max_temp, baseline, warning_delta, critical_delta,
+        max_hotspot_size,
     )
     do_alarm = should_alarm(new_status, state)
     return new_status, do_alarm

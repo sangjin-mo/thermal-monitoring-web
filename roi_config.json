@@ -2,12 +2,12 @@
     "_comment": "ROI 설정 - 공장 라인 설치 후 calibration.py 실행 후 수정",
     "thermal_roi": {
         "_comment": "Thermal 이미지(640x480) 기준 관심 영역 [x1, y1, x2, y2]",
-        "x1": 440,
-        "y1": 336,
-        "x2": 474,
-        "y2": 360
+        "x1": 402,
+        "y1": 222,
+        "x2": 550,
+        "y2": 396
     },
-    "baseline_temp": 35.0,
+    "baseline_temp": 23.0,
     "warning_delta": 15.0,
     "critical_delta": 25.0
 }

@@ -10,7 +10,7 @@ thermal_to_rgb.npy (Homography)가 있으면 RGB 이미지에 오버레이하고
 
 import os
 from dataclasses import dataclass
-
+import sys
 import cv2
 import numpy as np
 
@@ -22,10 +22,13 @@ OVERLAY_DIR = os.path.join(DATASET_DIR, "overlay")
 ROI_COLOR_NORMAL = (0, 255, 0)    # 초록
 ROI_COLOR_WARNING = (0, 200, 255) # 주황
 ROI_COLOR_CRITICAL = (0, 0, 255)  # 빨강
+HOTSPOT_COLOR = (0, 0, 255)       # 빨강 (핫스팟 마커)
+HOTSPOT_OUTLINE = (255, 255, 255) # 흰색 외곽선 (대비용)
 TEXT_COLOR = (255, 255, 255)
 TEXT_BG = (0, 0, 0)
 LINE_THICKNESS = 2
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+HOTSPOT_MARKER_RADIUS = 12
 
 
 def _status_color(status: str) -> tuple:
@@ -117,9 +120,11 @@ def draw_overlay(
     status: str,
     scale_x: float = 1.0,
     scale_y: float = 1.0,
+    hotspot_centroids: list | None = None,
 ) -> np.ndarray:
     """
     이미지 위에 ROI 박스 + 온도 정보 + 상태 표시를 그립니다.
+    hotspot_centroids가 있으면 각 핫스팟 위치에 마커를 표시합니다.
     원본을 변경하지 않고 복사본을 반환합니다.
     """
     img = canvas.copy()
@@ -134,6 +139,34 @@ def draw_overlay(
 
     # ROI 박스
     cv2.rectangle(img, (x1_s, y1_s), (x2_s, y2_s), color, LINE_THICKNESS)
+
+    # 핫스팟 마커
+    if hotspot_centroids:
+        for cx, cy, spot_temp in hotspot_centroids:
+            cx_s = int(cx * scale_x)
+            cy_s = int(cy * scale_y)
+            if not (0 <= cx_s < w and 0 <= cy_s < h):
+                continue
+            # 외부 원 (흰색 테두리로 가시성 확보)
+            cv2.circle(img, (cx_s, cy_s), HOTSPOT_MARKER_RADIUS + 2, HOTSPOT_OUTLINE, 1)
+            cv2.circle(img, (cx_s, cy_s), HOTSPOT_MARKER_RADIUS, HOTSPOT_COLOR, 2)
+            # 내부 채움 원
+            cv2.circle(img, (cx_s, cy_s), 4, HOTSPOT_COLOR, -1)
+            # 십자선 - 원 밖으로 뻗어나가도록
+            cross_len = HOTSPOT_MARKER_RADIUS + 8
+            cv2.line(img, (cx_s - cross_len, cy_s), (cx_s + cross_len, cy_s), HOTSPOT_OUTLINE, 3)
+            cv2.line(img, (cx_s, cy_s - cross_len), (cx_s, cy_s + cross_len), HOTSPOT_OUTLINE, 3)
+            cv2.line(img, (cx_s - cross_len, cy_s), (cx_s + cross_len, cy_s), HOTSPOT_COLOR, 2)
+            cv2.line(img, (cx_s, cy_s - cross_len), (cx_s, cy_s + cross_len), HOTSPOT_COLOR, 2)
+            # 온도 라벨
+            label = f"{spot_temp:.1f}C"
+            (lw, lh), _ = cv2.getTextSize(label, FONT, 0.4, 1)
+            lx = cx_s + HOTSPOT_MARKER_RADIUS + 8
+            ly = cy_s + lh // 2
+            if lx + lw + 4 > w:
+                lx = cx_s - lw - HOTSPOT_MARKER_RADIUS - 12
+            cv2.rectangle(img, (lx - 2, ly - lh - 2), (lx + lw + 2, ly + 2), TEXT_BG, -1)
+            cv2.putText(img, label, (lx, ly), FONT, 0.4, HOTSPOT_COLOR, 1)
 
     # 온도 텍스트
     lines = [
@@ -192,20 +225,10 @@ def create_overlay(
     hot_temp: float,
     status: str,
     homography: np.ndarray | None = None,
+    hotspot_centroids: list | None = None,
 ) -> np.ndarray:
     """
     오버레이 이미지 생성.
-
-    Args:
-        thermal_jpg_path: Thermal JPEG 경로
-        visual_jpg_path: 가시광 JPEG 경로 (_visual.jpg)
-        roi_bounds: Thermal 이미지 기준 ROI (x1, y1, x2, y2)
-        max_temp, mean_temp, hot_temp: 온도 통계
-        status: "Normal" / "Warning" / "Critical"
-        homography: Homography 행렬 (None이면 자동 로드)
-
-    Returns:
-        오버레이가 적용된 BGR 이미지 배열
     """
     if homography is None:
         homography = _load_homography()
@@ -214,7 +237,19 @@ def create_overlay(
         thermal_jpg_path, visual_jpg_path, roi_bounds, homography
     )
 
-    return draw_overlay(canvas, canvas_roi, max_temp, mean_temp, hot_temp, status, sx, sy)
+    # 호모그래피 사용 시 핫스팟 좌표도 visual 좌표계로 변환
+    transformed_centroids = None
+    if hotspot_centroids and homography is not None:
+        transformed_centroids = []
+        for cx, cy, spot_temp in hotspot_centroids:
+            pt = np.array([[[cx, cy]]], dtype=np.float32)
+            projected = cv2.perspectiveTransform(pt, homography)
+            vx, vy = projected[0][0]
+            transformed_centroids.append((round(vx), round(vy), spot_temp))
+    elif hotspot_centroids:
+        transformed_centroids = hotspot_centroids
+
+    return draw_overlay(canvas, canvas_roi, max_temp, mean_temp, hot_temp, status, sx, sy, transformed_centroids)
 
 
 def save_overlay(

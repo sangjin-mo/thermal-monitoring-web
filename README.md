@@ -37,8 +37,8 @@ project/
 ├── pipeline.py             # 통합 분석 파이프라인
 │
 ├── _encoding.py            # Windows UTF-8 인코딩 유틸 (내부)
-├── test.py                 # Threshold 시뮬레이션 테스트
-├── test_overlay.py         # 단일 이미지 오버레이 확인용
+├── test.py                 # Threshold 이중 경로 시뮬레이션 테스트
+├── test_overlay.py         # 최신 이미지 오버레이 + 핫스팟 마커 확인용
 │
 ├── product_design.md       # 제품 설계 계획안
 ├── experiment_config.json  # 실험 설정
@@ -102,9 +102,9 @@ python test_overlay.py
 
 | 모듈 | 설명 |
 |------|------|
-| `roi.py` | `.npy`에서 ROI 영역 온도 통계(max, mean, 95th) 추출 + Threshold 초과 픽셀 클러스터 분석 |
-| `threshold.py` | 95th percentile + 클러스터 크기 기반 상태 판정, 상태 변화 시 알림 쿨다운(10분) |
-| `overlay.py` | Thermal/RGB 이미지에 ROI 박스 + 온도 정보 표시, Homography 기반 좌표 변환 |
+| `roi.py` | `.npy`에서 ROI 영역 온도 통계(max, mean, 95th) 추출 + 클러스터 분석 + **핫스팟 중심좌표 추출** |
+| `threshold.py` | 이중 경로 상태 판정 (95th percentile + max 온도) + 클러스터 크기 기반 노이즈 필터링, 상태 변화 시 알림 쿨다운(10분) |
+| `overlay.py` | Thermal/RGB 이미지에 ROI 박스 + 온도 정보 + **핫스팟 마커** 표시, Homography 기반 좌표 변환 |
 | `pipeline.py` | 전체 파이프라인 통합: ROI → Threshold → Overlay → Telegram 알림 |
 
 ### 알림
@@ -114,12 +114,21 @@ python test_overlay.py
 | `notifier.py` | Telegram 이미지+캡션 전송, 실패 시 텍스트 폴백, `.env` 기반 토큰 관리 |
 | `pipeline.py` | 상태 변화 감지 시 `notifier.py` 호출하여 자동 알림 |
 
-### 판정 기준 상세
+### 판정 기준 상세 (이중 경로)
 
-- **95th percentile** 온도가 `baseline + warning_delta` 초과 → Warning
-- **95th percentile** 온도가 `baseline + critical_delta` 초과 → Critical
-- **1~2픽셀 크기의 국소 과열** → 센서 노이즈로 간주, 무시
-- **3픽셀 이상 연결된 과열 클러스터** → 실제 발열로 판정 (`cv2.connectedComponentsWithStats` 사용)
+**경로 1 — 95th percentile (넓은 영역 과열)**
+- `95th >= baseline + warning_delta` **AND** cluster ≥ 3px → Warning
+- `95th >= baseline + critical_delta` **AND** cluster ≥ 3px → Critical
+
+**경로 2 — max 온도 (국소 고온 보완)**
+- `max >= baseline + critical_delta` **AND** cluster ≥ 10px → 최소 Warning
+- ROI 대비 소수 픽셀만 과열되어 95th가 낮게 나오는 경우를 보완
+- cluster 임계치를 10px로 상향해 노이즈 방지
+
+**공통**
+- 1~2픽셀 크기의 국소 과열 → 센서 노이즈로 간주, 무시
+- 클러스터 분석: `cv2.connectedComponentsWithStats` 사용
+- 상태 변화 시에만 알림, 쿨다운 10분
 
 ## 🚧 현재 작업 중
 
@@ -136,10 +145,10 @@ python test_overlay.py
 |------|------|------|
 | ROI 설정 (GUI) | ✅ | `roi_selector.py` — 이미지 드래그로 ROI 지정 |
 | 온도 분석 파이프라인 | ✅ | `roi.py` — max/mean/95th + 클러스터 분석 |
-| Threshold 판단 로직 | ✅ | `threshold.py` — 클러스터 크기 기반 노이즈 필터링 |
+| Threshold 판단 로직 | ✅ | `threshold.py` — 이중 경로 (95th + max), 클러스터 크기 기반 노이즈 필터링 |
 | 상태 머신 | ✅ | Normal → Warning → Critical → Normal 상태 전이 |
 | Telegram 알림 | ✅ | `notifier.py` — 이미지+캡션 전송, `.env` 토큰 관리 |
-| Overlay 시각화 | ✅ | `overlay.py` — Thermal/RGB 이미지에 온도 정보 표시 |
+| Overlay 시각화 | ✅ | `overlay.py` — Thermal/RGB 이미지에 온도 정보 + 핫스팟 마커 표시, Homography 좌표 변환 |
 | 통합 파이프라인 | ✅ | `pipeline.py` — ROI → Threshold → Overlay → 알림 |
 | 통합 운영 GUI | ✅ | `tools.py` — Capture, Check, Metadata 한 화면에서 실행 |
 | 이력 관리 | ⬜ | 온도 트렌드 DB 저장 — DB 설계 완료 후 진행 |
