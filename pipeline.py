@@ -122,6 +122,7 @@ def run_pipeline():
                 mean_temp=result.mean_temp,
                 hot_temp=result.hot_temp_95,
                 status=new_status.value,
+                hotspot_centroids=result.hotspot_centroids,
             )
             overlay_path = save_overlay(base, overlay)
 

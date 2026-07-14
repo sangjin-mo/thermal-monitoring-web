@@ -9,7 +9,6 @@ import time
 from collections import deque
 
 from _encoding import setup_encoding
-from notifier import send_alarm as send_alarm_notifier
 from threshold import Status, MonitorState, evaluate_threshold, should_alarm
 
 setup_encoding()
@@ -21,19 +20,18 @@ BASELINE_TEMP = 35.0
 WARNING_DELTA = 15.0
 CRITICAL_DELTA = 25.0
 ALARM_COOLDOWN = 10 * 60
-ROBOT_ID = "Robot-01"
 
 # ------------------------------------------------------------
 # 임시 온도 시나리오
 # ------------------------------------------------------------
 SIMULATED_READINGS = [
     # (시점, 95th, max, mean, cluster_size)
-    ("13:00", 36.0, 37.2, 34.5, 0),
-    ("13:10", 36.5, 38.1, 34.8, 0),
-    ("13:20", 50.2, 55.3, 42.1, 15),  # 15픽셀 클러스터 → Warning
+    ("13:00", 36.0, 37.2, 34.5, 0),   # Normal (cluster 부족)
+    ("13:10", 36.5, 38.1, 34.8, 0),   # Normal
+    ("13:20", 50.2, 55.3, 42.1, 15),  # 95th 경로 → Warning
     ("13:30", 52.1, 57.8, 43.5, 18),
-    ("13:40", 53.0, 58.2, 44.0, 20),  # 쿨다운 중
-    ("13:50", 60.5, 66.1, 48.3, 30),  # 큰 클러스터 → Critical
+    ("13:40", 37.0, 66.1, 42.0, 30),  # max 경로 → Warning (max 높지만 95th 낮음)
+    ("13:50", 60.5, 66.1, 48.3, 30),  # 95th 경로 → Critical
     ("14:00", 61.2, 67.5, 49.1, 35),  # 쿨다운 중
     ("14:10", 38.0, 40.1, 35.2, 0),   # 정상 복귀
 ]
@@ -63,7 +61,7 @@ def main():
 
     for timestamp, hot_temp, max_temp, mean_temp, cluster_size in SIMULATED_READINGS:
         new_status = evaluate_threshold(
-            hot_temp, BASELINE_TEMP, WARNING_DELTA, CRITICAL_DELTA,
+            hot_temp, max_temp, BASELINE_TEMP, WARNING_DELTA, CRITICAL_DELTA,
             max_hotspot_size=cluster_size,
         )
         do_alarm = should_alarm(new_status, state)
@@ -84,10 +82,6 @@ def main():
               f"mean={mean_temp:.1f}C -> {new_status.value}{transition}")
 
         if do_alarm:
-            send_alarm_notifier(
-                image_path="thermal_dataset/dummy_overlay.jpg",
-                temp=hot_temp, status=new_status.value, robot_id=ROBOT_ID,
-            )
             state.last_alarm_time = time.time()
 
         time.sleep(0.5)
