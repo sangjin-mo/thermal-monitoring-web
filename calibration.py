@@ -181,6 +181,9 @@ else:
         )
 
         print(f"평균 재투영 오차: {error.mean():.4f}")
+        print(f"최대 재투영 오차: {error.max():.4f}")
+        for i, e in enumerate(error):
+            print(i, e)
 
 pt = np.array(
     [[[320,240]]],

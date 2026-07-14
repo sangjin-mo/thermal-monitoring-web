@@ -2,7 +2,7 @@
 notifier.py - Telegram 알림 전송 모듈
 
 .env 파일 또는 환경변수에서 BOT_TOKEN, CHAT_ID를 불러옵니다.
-환경변수가 설정되지 않은 경우 dry-run 모드로 콘솔에 출력합니다.
+설정되지 않은 경우 RuntimeError를 발생시킵니다.
 
 사용법:
     from notifier import send_alarm
@@ -10,17 +10,10 @@ notifier.py - Telegram 알림 전송 모듈
     send_alarm(image_path="overlay.jpg", temp=55.3, status="Warning", robot_id="Robot-01")
 """
 
-import io
 import os
 import sys
 
 import requests
-
-# Windows cp949 인코딩 문제 방지
-if sys.stdout.encoding != "utf-8":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-if sys.stderr.encoding != "utf-8":
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 # ------------------------------------------------------------
 # .env 파일 로드 (python-dotenv 없이 직접 파싱)
@@ -108,13 +101,17 @@ def send_alarm(
     """
     caption = build_caption(temp, status, robot_id)
 
+    # --- dry-run (개발 중 테스트용) ---
+    # if not _is_configured():
+    #     print("[DRY-RUN] Telegram not configured.")
+    #     print(f"  BOT_TOKEN={'***' if BOT_TOKEN else '(empty)'}")
+    #     print(f"  CHAT_ID={'***' if CHAT_ID else '(empty)'}")
+    #     print(f"  image={image_path}")
+    #     print(caption)
+    #     return True
+
     if not _is_configured():
-        print("[DRY-RUN] Telegram not configured.")
-        print(f"  BOT_TOKEN={'***' if BOT_TOKEN else '(empty)'}")
-        print(f"  CHAT_ID={'***' if CHAT_ID else '(empty)'}")
-        print(f"  image={image_path}")
-        print(caption)
-        return True
+        raise RuntimeError("BOT_TOKEN and CHAT_ID not configured. Set them in .env file.")
 
     # 1. 이미지 + 캡션 전송 시도
     photo_sent = False
@@ -160,9 +157,13 @@ def send_text(
     """
     이미지 없이 텍스트만 전송.
     """
+    # --- dry-run (개발 중 테스트용) ---
+    # if not _is_configured():
+    #     print(f"[DRY-RUN] Telegram text:\n{text}")
+    #     return True
+
     if not _is_configured():
-        print(f"[DRY-RUN] Telegram text:\n{text}")
-        return True
+        raise RuntimeError("BOT_TOKEN and CHAT_ID not configured. Set them in .env file.")
 
     try:
         resp = requests.post(
@@ -176,19 +177,19 @@ def send_text(
 
 
 # ------------------------------------------------------------
-# 테스트 (직접 실행 시 dry-run)
+# 테스트 (직접 실행 시)
 # ------------------------------------------------------------
-if __name__ == "__main__":
-    print("=== Notifier Dry-Run Test ===")
-    print()
-
-    send_alarm(
-        image_path="thermal_dataset/overlay_sample.jpg",
-        temp=55.3,
-        status="Warning",
-        robot_id="Robot-01",
-    )
-
-    print()
-
-    send_text("Test message from robot thermal monitor.")
+# if __name__ == "__main__":
+#     print("=== Notifier Dry-Run Test ===")
+#     print()
+#
+#     send_alarm(
+#         image_path="thermal_dataset/overlay_sample.jpg",
+#         temp=55.3,
+#         status="Warning",
+#         robot_id="Robot-01",
+#     )
+#
+#     print()
+#
+#     send_text("Test message from robot thermal monitor.")

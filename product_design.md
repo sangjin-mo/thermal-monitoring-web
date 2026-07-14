@@ -85,40 +85,26 @@ temperature[y, x] = 36.4
 
 ---
 # ~~5. AI 분석 절차
-
 ## Step 1
-
 ### RGB 영상에서 로봇 검출
-
 ```
 Robot Detection
 ```
-
 출력:
-
 ```
 robot_bbox
 ```
-
----
 ## Step 2
-
 ### Thermal 영역 매핑
-
-RGB ROI를 Thermal 좌표계로 변환.
-
+	RGB ROI를 Thermal 좌표계로 변환.
 ## Step 3
-
 ### Temperature ROI 추출
-
 ```
 roi = thermal[
     y1:y2,
     x1:x2
 ]
 ```
-
----
 ## Step 4
 
 ### 온도 통계 계산
@@ -128,18 +114,15 @@ max_temp
 mean_temp
 95_percentile_temp
 ```
-
----
-## 권장 지표
+### 권장 지표
 
 ```
 temperature = np.percentile(
     roi,
     95
+    # 최대 온도가 노이즈로 인한 피크치 일 수 있기에 95 기준으로
 )
 ```
-
-최대 온도보다 노이즈에 강함.
 
 ---
 # 5. ROI 분석
@@ -163,9 +146,12 @@ roi = thermal[
     tx1:tx2
 ]
 ```
+```
+초기 버전은 사용자가 설정하는 ROI 기반으로 구현하며, 
+향후 현장 데이터 확보 후 자동 객체 검출 및 추적 기능을 적용한다.
+```
 ---
 # 6. 온도 분석
-
 ```
 # 최대 값
 max_temp = roi.max()
@@ -179,10 +165,8 @@ hot_temp = np.percentile(
     95
 )
 ```
-
 ---
 # 7. 임계값 판단(Threshold)
-
 ```
 if hot_temp >
 baseline + 15:
@@ -190,7 +174,6 @@ baseline + 15:
 ```
 ---
 # 8. 상태 머신
-
 ```
 Normal
   ↓
