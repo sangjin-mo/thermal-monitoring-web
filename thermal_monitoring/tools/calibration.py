@@ -44,7 +44,7 @@ def click_rgb(event, x, y, flags, param):
         else:
             print("[경고] Thermal 포인트를 먼저 클릭하세요.")
 
-from config import load_config
+from ..config import load_config
 
 cfg = load_config()
 DATASET_DIR = cfg.paths.dataset_dir

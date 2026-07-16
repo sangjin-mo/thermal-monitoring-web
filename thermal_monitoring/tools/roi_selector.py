@@ -23,7 +23,7 @@ import glob
 import cv2
 import numpy as np
 
-from config import load_config, save_config
+from ..config import load_config, save_config
 
 cfg = load_config()
 DATASET_DIR = cfg.paths.dataset_dir

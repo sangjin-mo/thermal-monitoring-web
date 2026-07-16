@@ -10,7 +10,7 @@ import io
 
 # exiftool 경로 — config.json에서 설정하거나, 없으면 DJI SDK 경로 → PATH fallback
 def _get_default_exiftool() -> str:
-    from config import load_config
+    from ..config import load_config
     cfg = load_config()
     if cfg.tools.exiftool_path:
         return cfg.tools.exiftool_path

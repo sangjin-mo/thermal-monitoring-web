@@ -17,7 +17,6 @@ monitor.py - 실시간 열화상 감시 시퀀서 (Real-time Thermal Monitoring 
 """
 
 import os
-import sys
 import threading
 import time
 from datetime import datetime
@@ -25,20 +24,18 @@ from typing import Optional
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from config import load_config
-from capture import CaptureSession
-from checking import run_check, CheckResult
-from roi import load_roi_config, extract_roi_from_npy
-from threshold import (
+from ..config import load_config
+from ..capture.capture import CaptureSession
+from ..data.checking import run_check
+from ..data.metadata import run_metadata
+from ..analysis.roi import load_roi_config, extract_roi_from_npy
+from ..analysis.threshold import (
     Status,
     MonitorState,
     evaluate_with_state,
 )
-from overlay import create_overlay, save_overlay
-from notifier import send_alarm
-from metadata import run_metadata
+from ..analysis.overlay import create_overlay, save_overlay
+from ..analysis.notifier import send_alarm
 
 _cfg = load_config()
 DATASET_DIR = _cfg.paths.dataset_dir
@@ -148,7 +145,7 @@ class MonitorSequencer:
             # NPY가 없으면 JPEG에서 즉시 추출
             if base not in npys:
                 try:
-                    from thermal_utils import extract_from_jpeg
+                    from ..capture.thermal_utils import extract_from_jpeg
                     jpg_path = os.path.join(DATASET_DIR, thermal_jpgs[base])
                     thermal, _ = extract_from_jpeg(jpg_path)
                     np.save(npy_path, thermal)
@@ -360,7 +357,7 @@ class MonitorSequencer:
         except Exception as e:
             self._log(f"Failed to load ROI config: {e}")
             self._log("Using default ROI (full frame)")
-            from roi import RoiConfig
+            from ..analysis.roi import RoiConfig
             self.roi_config = RoiConfig()
 
         self._log(
@@ -413,8 +410,8 @@ class MonitorSequencer:
 
 
 # ── 진입점 ──────────────────────────────────────────────────
-if __name__ == "__main__":
-    from _encoding import setup_encoding
+def main():
+    from .._encoding import setup_encoding
     setup_encoding()
 
     cfg = load_config()
@@ -425,3 +422,7 @@ if __name__ == "__main__":
     )
 
     monitor.start()
+
+
+if __name__ == "__main__":
+    main()

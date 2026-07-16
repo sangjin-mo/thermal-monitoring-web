@@ -12,21 +12,20 @@ thermal_dataset의 모든 파일쌍을 순회하며:
 """
 
 import os
-import sys
 import time
 from datetime import datetime
 
 import numpy as np
 
-from config import load_config
-from roi import load_roi_config, extract_roi_from_npy
-from threshold import (
+from ..config import load_config
+from ..analysis.roi import load_roi_config, extract_roi_from_npy
+from ..analysis.threshold import (
     Status,
     MonitorState,
     evaluate_with_state,
 )
-from overlay import create_overlay, save_overlay
-from notifier import send_alarm as send_telegram
+from ..analysis.overlay import create_overlay, save_overlay
+from ..analysis.notifier import send_alarm as send_telegram
 
 _cfg = load_config()
 DATASET_DIR = _cfg.paths.dataset_dir
@@ -66,7 +65,7 @@ def scan_pairs() -> list[dict]:
 
 def run_pipeline():
     """전체 파이프라인 실행"""
-    from _encoding import setup_encoding
+    from .._encoding import setup_encoding
     setup_encoding()
 
     print("=" * 60)
@@ -159,5 +158,9 @@ def run_pipeline():
     print("=" * 60)
 
 
-if __name__ == "__main__":
+def main():
     run_pipeline()
+
+
+if __name__ == "__main__":
+    main()

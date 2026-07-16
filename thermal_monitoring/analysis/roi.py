@@ -12,7 +12,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from config import load_config, RoiConfig as AppRoiConfig
+from ..config import load_config, RoiConfig as AppRoiConfig
 
 # Thermal 이미지 vs .npy 해상도 차이 보정
 DISPLAY_W = load_config().display.roi_display_width
@@ -168,7 +168,7 @@ def extract_roi_from_npy(npy_path: str, config: Optional[RoiConfig] = None) -> R
 # 테스트
 # ------------------------------------------------------------
 if __name__ == "__main__":
-    from _encoding import setup_encoding
+    from .._encoding import setup_encoding
     setup_encoding()
 
     cfg = load_config()

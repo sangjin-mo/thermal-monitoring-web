@@ -78,7 +78,7 @@ Telegram 알림
 
 ## 통합 설정 (config.json)
 
-모든 설정을 단일 파일로 관리합니다. 구버전 설정 파일은 최초 실행 시 자동 이관됩니다.
+모든 설정을 단일 파일로 관리합니다. 구버전 설정 파일(`roi_config.json`, `experiment_config.json`)은 최초 실행 시 자동 이관(migration)되며 `.bak`으로 백업됩니다.
 
 ```
 config.json

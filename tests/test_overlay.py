@@ -2,12 +2,12 @@
 
 import os
 
-from _encoding import setup_encoding
+from thermal_monitoring._encoding import setup_encoding
 setup_encoding()
 
-from roi import load_roi_config, extract_roi_from_npy
-from threshold import evaluate_threshold
-from overlay import create_overlay, save_overlay
+from thermal_monitoring.analysis.roi import load_roi_config, extract_roi_from_npy
+from thermal_monitoring.analysis.threshold import evaluate_threshold
+from thermal_monitoring.analysis.overlay import create_overlay, save_overlay
 
 DATASET_DIR = "thermal_dataset"
 

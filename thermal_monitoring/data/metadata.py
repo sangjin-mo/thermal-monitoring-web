@@ -11,16 +11,13 @@ ROI 분석 + Threshold 판정 결과를 포함합니다.
 """
 
 import csv
-import json
 import os
-import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from roi import load_roi_config, extract_roi_from_npy
-from threshold import evaluate_threshold
-from config import load_config
+from ..analysis.roi import load_roi_config, extract_roi_from_npy
+from ..analysis.threshold import evaluate_threshold
+from ..config import load_config
 
 SAVE_DIR = load_config().paths.dataset_dir
 

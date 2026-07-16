@@ -14,10 +14,10 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 from datetime import datetime
 
-from capture import CaptureSession
-from checking import run_check
-from metadata import run_metadata
-from config import load_config
+from ..capture.capture import CaptureSession
+from ..data.checking import run_check
+from ..data.metadata import run_metadata
+from ..config import load_config
 
 
 class ToolApp:

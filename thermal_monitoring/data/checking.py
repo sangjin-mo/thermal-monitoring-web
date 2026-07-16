@@ -10,13 +10,11 @@ checking.py - 데이터셋 무결성 검사 및 복구
 """
 
 import os
-import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from thermal_utils import extract_from_jpeg
-from config import load_config
+from ..capture.thermal_utils import extract_from_jpeg
+from ..config import load_config
 
 SAVE_DIR = load_config().paths.dataset_dir
 

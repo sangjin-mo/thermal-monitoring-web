@@ -8,9 +8,9 @@ test.py - Threshold 판단 및 상태 머신 시뮬레이션 테스트
 import time
 from collections import deque
 
-from _encoding import setup_encoding
-from config import load_config
-from threshold import Status, MonitorState, evaluate_threshold, should_alarm
+from thermal_monitoring._encoding import setup_encoding
+from thermal_monitoring.config import load_config
+from thermal_monitoring.analysis.threshold import Status, MonitorState, evaluate_threshold, should_alarm
 
 setup_encoding()
 

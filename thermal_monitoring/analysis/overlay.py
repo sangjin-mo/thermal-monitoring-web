@@ -14,7 +14,7 @@ import sys
 import cv2
 import numpy as np
 
-from config import load_config
+from ..config import load_config
 
 cfg = load_config()
 DATASET_DIR = cfg.paths.dataset_dir
@@ -288,7 +288,7 @@ def show_overlay(overlay_img: np.ndarray, window_name: str = "Overlay"):
 # 테스트
 # ------------------------------------------------------------
 if __name__ == "__main__":
-    from _encoding import setup_encoding
+    from .._encoding import setup_encoding
     setup_encoding()
 
     print("=== Overlay Test ===\n")
